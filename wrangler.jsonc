@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hackaton-uca",
+  "compatibility_date": "2026-11-04",
+  "observability": { "enabled": true },
+  // Publicar SOLO la carpeta dist/ (la arma preparar_cloudflare.py con los modelos comprimidos).
+  // La raíz del repo tiene Fuego.glb de 31.5 MiB y Cloudflare acepta hasta 25 MiB por archivo.
+  "assets": { "directory": "./dist" }
+}
