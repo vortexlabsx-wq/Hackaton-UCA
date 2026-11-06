@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Editor de pueblos</title>
+  <style>
+    :root {
+      --bg: #0f1115; --panel: #171a21; --panel2: #1e222b; --line: #2a2f3a; --text: #e6e8ee; --muted: #9aa1ae;
+      --accent: #9bd35a; --danger: #ff6b6b; --radius: 8px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 13px/1.4 system-ui, "Segoe UI", sans-serif; }
+    body { display: grid; grid-template-rows: auto 1fr; overflow: hidden; }
+    button, select, input { font: inherit; color: inherit; }
+    button {
+      background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; white-space: nowrap;
+    }
+    button:hover { border-color: #46505f; background: #252a35; }
+    button.on { border-color: var(--accent); color: var(--accent); }
+    button.primary { background: var(--accent); color: #12160c; border-color: transparent; font-weight: 600; }
+    button.danger { color: var(--danger); }
+    button:disabled { opacity: .4; cursor: default; }
+    input[type=number], input[type=text], select {
+      background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 3px 6px; width: 100%; min-width: 0;
+    }
+    input[type=range] { width: 100%; accent-color: var(--accent); }
+    input[type=checkbox] { accent-color: var(--accent); }
+
+    header { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--line); background: var(--panel); }
+    header h1 { font-size: 15px; margin: 0 10px 0 2px; white-space: nowrap; }
+    header .sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; }
+    header .grow { flex: 1; }
+    .tabs { display: flex; gap: 4px; }
+    .tabs button.on { background: color-mix(in srgb, var(--accent) 18%, var(--panel2)); }
+    #saveState { color: var(--muted); font-size: 12px; min-width: 120px; text-align: right; }
+
+    main { display: grid; grid-template-columns: 240px 1fr 280px; min-height: 0; }
+    aside { background: var(--panel); overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 12px; }
+    aside.left { border-right: 1px solid var(--line); }
+    aside.right { border-left: 1px solid var(--line); }
+    h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 6px; font-weight: 600; }
+    .palette { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    .palette button { text-align: left; padding: 6px 8px; overflow: hidden; text-overflow: ellipsis; }
+    .palette button.wide { grid-column: 1 / -1; }
+    .row { display: grid; grid-template-columns: 82px 1fr; gap: 6px; align-items: center; margin-bottom: 5px; }
+    .row label, .lbl { color: var(--muted); }
+    .row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+    .check { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; cursor: pointer; }
+    .btns { display: flex; flex-wrap: wrap; gap: 5px; }
+    .hint { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
+    .empty { color: var(--muted); font-style: italic; }
+
+    #list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+    #list li { padding: 4px 8px; border-radius: 5px; cursor: pointer; display: flex; justify-content: space-between; gap: 6px; }
+    #list li:hover { background: var(--panel2); }
+    #list li.sel { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+    #list li span:last-child { color: var(--muted); }
+
+    #view { position: relative; min-width: 0; min-height: 0; }
+    #view canvas { position: absolute; inset: 0; width: 100% !important; height: 100% !important; display: block; outline: none; }
+    .overlay { position: absolute; pointer-events: none; font-size: 12px; color: #c8ccd6; background: rgba(10,12,16,.7); border-radius: 6px; padding: 6px 9px; }
+    #help { left: 10px; bottom: 10px; max-width: 520px; }
+    #mode { left: 10px; top: 10px; }
+    #placingTip { left: 50%; top: 10px; transform: translateX(-50%); display: none; background: rgba(155,211,90,.92); color: #12160c; font-weight: 600; }
+    #legend { right: 10px; top: 10px; line-height: 1.6; }
+    .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+    #loading { position: absolute; inset: 0; display: grid; place-items: center; background: var(--bg); font-size: 15px; z-index: 5; }
+    #toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); background: #262c37; border: 1px solid var(--line); padding: 8px 14px; border-radius: 8px; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 10; max-width: 90vw; }
+    #toast.show { opacity: 1; }
+
+    @media (max-width: 900px) {
+      body { overflow: auto; }
+      main { grid-template-columns: 1fr; }
+      #view { height: 60vh; order: -1; }
+      aside { border: 0 !important; border-top: 1px solid var(--line) !important; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🛠️ Editor de pueblos</h1>
+    <div class="tabs" id="tabs"></div>
+    <span class="sep"></span>
+    <button id="mTranslate" class="on" title="Mover (G)">✥ Mover</button>
+    <button id="mRotate" title="Rotar (R)">⟳ Rotar</button>
+    <button id="mScale" title="Escalar (S)">⤢ Escalar</button>
+    <label class="check" style="margin:0" title="Mover de a 5 cm, rotar de a 15°"><input type="checkbox" id="snap" checked /> Imán</label>
+    <span class="sep"></span>
+    <button id="undo" title="Deshacer (Ctrl+Z)">↶</button>
+    <button id="redo" title="Rehacer (Ctrl+Y)">↷</button>
+    <span class="sep"></span>
+    <button id="vFree" title="Vista en perspectiva">🎥 Libre</button>
+    <button id="vCam" title="Como lo ve la cámara del juego">📷 Cámara</button>
+    <button id="vTop" title="Desde arriba">⬇ Arriba</button>
+    <span class="grow"></span>
+    <span id="saveState">—</span>
+    <button id="demo" class="primary" title="Abrir la demo sin cámara con este pueblo">▶ Probar en demo</button>
+  </header>
+
+  <main>
+    <aside class="left">
+      <section>
+        <h2>Agregar piezas</h2>
+        <div id="palette"></div>
+        <p class="hint">Elegí una pieza y hacé clic en el piso para ponerla. Con <b>Shift</b> seguís poniendo más.</p>
+      </section>
+      <section>
+        <h2>Pueblo</h2>
+        <label class="check"><input type="checkbox" id="lGround" /> Piso del reino</label>
+        <label class="check"><input type="checkbox" id="lPlaza" /> Plaza a los pies</label>
+        <div class="row"><label for="lPlazaR">Radio plaza</label><input type="range" id="lPlazaR" min="0.12" max="0.7" step="0.01" /></div>
+        <label class="check"><input type="checkbox" id="lRoads" /> Caminos a la plaza</label>
+        <label class="check"><input type="checkbox" id="lLamps" /> Farolas en los caminos</label>
+        <div class="row"><label for="lVillagers">Aldeanos</label><input type="number" id="lVillagers" min="0" max="16" step="1" placeholder="auto" /></div>
+      </section>
+      <section>
+        <h2>Archivo</h2>
+        <div class="btns">
+          <button id="exportJson" title="Guardar el plano como models/pueblo_ELEMENTO.json">💾 Exportar JSON</button>
+          <button id="importJson">📂 Importar JSON</button>
+          <button id="exportGlb" title="Exportar el pueblo como modelo 3D para seguir en Blender">🧊 Exportar GLB</button>
+        </div>
+        <p class="hint">Cada cambio se guarda solo en <code>models/pueblo_ELEMENTO.json</code> y los .glb en <code>models/</code> (abriendo la app con <code>iniciar.bat</code>). La app lo usa al instante.</p>
+        <div class="btns" style="margin-top:8px">
+          <button id="random">🎲 Aleatorio</button>
+          <button id="clear" class="danger">Vaciar</button>
+          <button id="reset" class="danger" title="Borra el pueblo que armaste para este reino y vuelve el original">Descartar mis cambios</button>
+        </div>
+        <input type="file" id="jsonFile" accept=".json,application/json" hidden />
+        <input type="file" id="glbFile" accept=".glb" hidden />
+        <input type="file" id="blendFile" accept=".blend" hidden />
+      </section>
+      <section>
+        <h2>Vista</h2>
+        <label class="check"><input type="checkbox" id="vPerson" checked /> Persona de referencia</label>
+        <label class="check"><input type="checkbox" id="vGrid" checked /> Cuadrícula</label>
+        <label class="check"><input type="checkbox" id="vAnim" checked /> Animaciones y partículas</label>
+      </section>
+    </aside>
+
+    <div id="view">
+      <div id="loading">Cargando modelos y texturas…</div>
+      <div class="overlay" id="mode">Mover</div>
+      <div class="overlay" id="placingTip"></div>
+      <div class="overlay" id="legend">
+        <div><span class="sw" style="background:#ff5a5a"></span>Delante de la persona (la tapa)</div>
+        <div><span class="sw" id="swBorder"></span>Borde del reino</div>
+        <div><span class="sw" style="background:#ffd34d"></span>Flecha: hacia la cámara</div>
+      </div>
+      <div class="overlay" id="help">
+        Clic: elegir · Arrastrar: girar vista · Clic derecho: desplazar · Rueda: zoom<br />
+        G / R / S: mover / rotar / escalar · Q / E: girar 15° · Flechas: empujar · Supr: borrar · Ctrl+D: duplicar · Ctrl+Z: deshacer · Esc: soltar
+      </div>
+    </div>
+
+    <aside class="right">
+      <section>
+        <h2>Pieza seleccionada</h2>
+        <div id="props"><p class="empty">Ninguna. Hacé clic en una pieza.</p></div>
+      </section>
+      <section>
+        <h2>Piezas del pueblo <span id="count"></span></h2>
+        <ul id="list"></ul>
+      </section>
+    </aside>
+  </main>
+  <div id="toast"></div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module" src="editor.js"></script>
+</body>
+</html>

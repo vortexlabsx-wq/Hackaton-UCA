@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "element": "aire",
+  "plazaR": 0.34,
+  "plaza": true,
+  "ground": true,
+  "roads": true,
+  "lamps": true,
+  "pieces": [
+    {
+      "kind": "glb",
+      "src": "models/Aire.glb",
+      "size": 1,
+      "x": 0,
+      "z": 0,
+      "rot": 0,
+      "s": [
+        1.5,
+        1.4,
+        1.6
+      ]
+    }
+  ],
+  "savedAt": 1793979406656
+}

@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "element": "fuego",
+  "plazaR": 0.34,
+  "plaza": true,
+  "ground": true,
+  "roads": true,
+  "lamps": true,
+  "pieces": [
+    {
+      "kind": "glb",
+      "src": "models/Fuego.glb",
+      "size": 0.5,
+      "x": 0,
+      "z": 0,
+      "rot": 0,
+      "s": [
+        2.4,
+        2,
+        2.6
+      ]
+    }
+  ],
+  "savedAt": 1793979399817
+}

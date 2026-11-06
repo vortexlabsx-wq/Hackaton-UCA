@@ -1,0 +1,77 @@
+﻿<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Demo 3D sin cámara</title>
+  <style>
+    body { margin: 0; background: #0f1115; overflow: hidden; font-family: system-ui, sans-serif; }
+    canvas { display: block; width: 100vw; height: 100vh; object-fit: contain; }
+    nav { position: fixed; top: 12px; left: 12px; display: flex; gap: 8px; }
+    nav a { padding: 6px 12px; border-radius: 8px; background: rgba(0,0,0,.55); color: #fff; text-decoration: none; font-size: 14px; }
+  </style>
+</head>
+<body>
+<canvas id="c" width="1280" height="720"></canvas>
+<nav>
+  <a href="?el=tierra">🌿 Tierra</a><a href="?el=fuego">🔥 Fuego</a><a href="?el=agua">💧 Agua</a><a href="?el=aire">🌪️ Aire</a><a href="editor.html" target="_blank">🛠️ Editor</a>
+</nav>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                 "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+<script type="module">
+// Demo sin cámara: una persona simulada (silueta + esqueleto) para ver y presentar los reinos 3D.
+// Parámetros: ?el=tierra|fuego|agua|aire  &s=escala  &feet=altura de los pies  &ring=tamaño  &t=segundos de calentamiento
+import { Realms } from "./world3d.js";
+const q = new URLSearchParams(location.search);
+const el = q.get("el") || "tierra";
+const warm = parseFloat(q.get("t") || "8");
+const ring = parseFloat(q.get("ring") || "2.2");
+const W = 1280, H = 720, cx = 640;
+const c = document.getElementById("c"), ctx = c.getContext("2d");
+window.onerror = (m) => { document.title = "error: " + m; };
+
+const body = Array.from({ length: 33 }, () => ({ x: cx, y: 300, v: 1 }));
+const set = (i, x, y) => (body[i] = { x: cx + x, y, v: 1 });
+set(0, 0, 150);
+set(11, 70, 235); set(12, -70, 235); set(13, 100, 340); set(14, -100, 340); set(15, 112, 440); set(16, -125, 420);
+set(23, 45, 450); set(24, -45, 450); set(25, 50, 560); set(26, -50, 560); set(27, 50, 662); set(28, -50, 662);
+// Escala de la persona (más lejos de la cámara = más chica) y posición de los pies
+const ps = parseFloat(q.get("s") || "0.7"), feetY = parseFloat(q.get("feet") || "600");
+for (const p of body) { p.x = cx + (p.x - cx) * ps; p.y = feetY + (p.y - 665) * ps; }
+
+function drawPerson(g, sx, sy, fill) {
+  g.save(); g.scale(sx, sy); g.fillStyle = g.strokeStyle = fill; g.lineCap = "round"; g.lineJoin = "round";
+  const L = (a, b, w) => { g.lineWidth = w * ps; g.beginPath(); g.moveTo(body[a].x, body[a].y); g.lineTo(body[b].x, body[b].y); g.stroke(); };
+  g.beginPath(); g.arc(body[0].x, body[0].y + 5 * ps, 42 * ps, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.moveTo(body[11].x + 10, body[11].y - 5); g.lineTo(body[12].x - 10, body[12].y - 5); g.lineTo(body[24].x - 12, body[24].y + 10); g.lineTo(body[23].x + 12, body[23].y + 10); g.fill();
+  L(11, 13, 40); L(13, 15, 34); L(12, 14, 40); L(14, 16, 34); L(23, 25, 48); L(25, 27, 40); L(24, 26, 48); L(26, 28, 40);
+  g.lineWidth = 30 * ps; g.beginPath(); g.moveTo(cx, body[0].y + 40 * ps); g.lineTo(cx, body[11].y); g.stroke();
+  g.restore();
+}
+const mask = document.createElement("canvas"); mask.width = 256; mask.height = 256;
+drawPerson(mask.getContext("2d"), 256 / W, 256 / H, "rgba(0,0,0,1)");
+
+const realms = new Realms(); window.realms = realms;
+await realms.load();
+realms.setSize(W, H, 12);
+const track = { id: 1, x: cx, y: feetY, w: 150 * ps, body, alpha: 1, element: el };
+const opts = { shadow: true, light: true, ringSize: ring };
+for (let i = 0; i < warm * 30; i++) realms.update(1 / 30, [track], opts); // que el reino ya haya crecido
+
+const bg = ctx.createLinearGradient(0, 0, 0, H);
+bg.addColorStop(0, "#6b6f78"); bg.addColorStop(0.62, "#8a8d94"); bg.addColorStop(0.63, "#5a4a3c"); bg.addColorStop(1, "#3a2e24");
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  realms.update(dt, [track], opts);
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  drawPerson(ctx, 1, 1, "#3d5a80");
+  ctx.drawImage(realms.render(mask), 0, 0);
+  document.title = "done " + realms.status;
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
